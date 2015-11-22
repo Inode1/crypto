@@ -89,30 +89,25 @@ class OnePadAttack {
             for (int k = 0; k < baseCypherText.length; ++k) {
                 char xorResult = (char) (tempHexChar[k] ^ baseCypherText[k]);
                 xorText[j][k] = xorResult;
-                if (positionArray[k] != SIGN && positionArray[k] != BIGSYMBOLS && positionArray[k] != LITTLESYMBOLS) {
-                    byte checkSymbol = (xorResult >> 6) & 0xf;
+                if (positionArray[k] != SIGN && positionArray[k] != BIGLITTLE) {
+                    byte checkSymbol = (byte)((xorResult >> 6) & 0xf);
                     if (checkSymbol != 0) {
                         if (positionArray[k] == 0) {
                             positionArray[k] = checkSymbol;
                         }
-                        else if (checkSymbol == SIGNLITTLE && (positionArray[k] == SIGNBIG || positionArray[k] == BIGLITTLE)) {
-                            if (positionArray[k] == SIGNBIG) {
-                                positionArray[k] = BIGSYMBOLS;
+                        else if (positionArray[k] == SIGNLITTLE && (checkSymbol == BIGLITTLE || checkSymbol == SIGNBIG)) {
+                            if (checkSymbol == BIGLITTLE) {
+                                positionArray[k] = BIGLITTLE;
                             } else {
-                                positionArray[k] = LITTLESYMBOLS;
-                            }
-
-                        }
-                        else if (checkSymbol == SIGNBIG && && (positionArray[k] == BIGLITTLE || positionArray[k] == SIGNLITTLE)) {
-                            if (positionArray[k] == BIGLITTLE) {
-                                positionArray[k] = BIGSYMBOLS;
-                            } else {
-                                positionArray[k] = LITTLESYMBOLS;
-                            }
-
-                        }
-                        else if (checkSymbol == BIGLITTLE && (positionArray[k] == SIGNBIG || positionArray[k] == SIGNLITTLE)) {
                                 positionArray[k] = SIGN;
+                            }
+                        }
+                        else if (positionArray[k] == SIGNBIG && (checkSymbol == BIGLITTLE || checkSymbol == SIGNLITTLE)) {
+                            if (checkSymbol == BIGLITTLE) {
+                                positionArray[k] = BIGLITTLE;
+                            } else {
+                                positionArray[k] = SIGN;
+                            }     
                         }
                     }
                 }
@@ -128,11 +123,26 @@ class OnePadAttack {
     }
 
     public void printDebug() {
-        for (int i = 0; i < xorText.length; ++i) {
+/*        for (int i = 0; i < xorText.length; ++i) {
             for (int j = 0; j < xorText[i].length; ++j) {
                 System.out.print((int)xorText[i][j] + " ");
             }
             System.out.println();
+        }*/
+        for (int i = 0; i < positionArray.length; ++i) {
+            if (positionArray[i] == EQUALS) {
+                //System.out.print("EQUALS" + " ");
+            } else if (positionArray[i] == BIGLITTLE) {
+                //System.out.print("BIGLITTLE" + " ");
+            } else if (positionArray[i] == SIGNBIG) {
+                System.out.print("SIGNBIG" + " ");
+            } else if (positionArray[i] == SIGNLITTLE) {
+                System.out.print("SIGNLITTLE" + " ");
+            } else if (positionArray[i] == SIGN) {
+                System.out.print("SIGN" + " ");
+            } else {
+                System.out.print("Unkinown" + " ");
+            }
         }
     }
 
