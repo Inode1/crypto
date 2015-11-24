@@ -31,7 +31,7 @@ class OnePadAttack {
     // base hex char cypher text
     private char[] baseCypherText;
     // array indicate position in cypher text
-    private char[][] positionArray;
+    private char[][][] positionArray;
     // xor cypher texts
     private char[][][] xorText; 
     public OnePadAttack(String fileName) {
@@ -56,13 +56,12 @@ class OnePadAttack {
             }
         }
         minCypherLen /= 2;
-        positionArray  = new char[test.length][minCypherLen];
+        positionArray  = new char[test.length][test.length][minCypherLen];
 
         xorText        = new char[test.length][test.length][minCypherLen];
         //baseCypherText = stringHexToChar(test[cypherNumber]);
         createXorTextArray();
-        decodeElementPosition();
-        //cypherTextLowerCase();
+        //decodeElementPosition();
     }
 
     private char[] stringHexToChar(String hexString) {
@@ -83,7 +82,43 @@ class OnePadAttack {
     }
 
     private void decodeElementPosition() {
-        for (int i = 0; i < )
+        for (int i = 0; i < xorText.length; ++i) {
+            for (int j = 0; j < xorText[i].length; ++j) {
+                if (i == j) {
+                    continue;
+                }
+                for (int l = 0; l < xorText[i][j].length; ++l) {
+                    char checkSymbol = (char) ((xorText[i][j][l] >> 5) & 0x3);
+                    char first       = positionArray[i][j][l];
+                    char second      = positionArray[j][i][l];
+
+                    if (first != second) {
+                        if (first == EQUALS) {
+                            positionArray[i][j][l] = second;
+                        }
+                        else if (second == EQUALS) {
+                            positionArray[j][i][l] = first;
+                        }
+                        else if (first == LITTLE && second == SIGNLITTLE) {
+                            positionArray[j][i][l] = SIGN;
+                        }
+                        else if (second == LITTLE && first == SIGNLITTLE) {
+                            positionArray[i][j][l] = SIGN;
+                        } 
+                        else if (first == SIGN && second == SIGNLITTLE) {
+                            positionArray[j][i][l] = LITTLE;
+                        }
+                        else if (second == SIGN && first == SIGNLITTLE) {
+                            positionArray[i][j][l] = LITTLE;
+                        }
+                    } else {
+
+                    }
+                    //System.out.printf(" %h - %h - %h\n", first, second, checkSymbol);
+
+                }
+            }
+        }
 
     }
 
@@ -98,36 +133,20 @@ class OnePadAttack {
                 if (j > i) {
                     firstHex = stringHexToChar(test[i]);
                     secondHex = stringHexToChar(test[j]);                    
-                }
-                for (int l = 0; l < xorText[i][j].length; ++l) {
-                    if (j > i) {
-                        char xorResult = firstHex[l] ^ secondHex[l];
-                        char checkSymbol = (char) ((checkSymbol >> 5) & 0x3); 
+                    for (int l = 0; l < xorText[i][j].length; ++l) {
+                        char xorResult = (char) (firstHex[l] ^ secondHex[l]);
+                        char checkSymbol = (char) ((xorResult >> 5) & 0x3); 
                         if (checkSymbol == SIGNBIG || checkSymbol == BIGLITTLE) {
                             xorResult ^= ' ';
-                            positionArray[firstIndex][secondIndex] = (checkSymbol == SIGNBIG ? SIGNLITTLE : LITTLE);
+                            positionArray[i][j][l] = (checkSymbol == SIGNBIG ? SIGNLITTLE : LITTLE);
+                            positionArray[j][i][l] = (checkSymbol == SIGNBIG ? SIGNLITTLE : LITTLE);
+                        } else {
+                            positionArray[i][j][l] = checkSymbol;
+                            positionArray[j][i][l] = checkSymbol;
                         }
-                        xorText[i][j] = checkSymbol;
-                        xorText[j][i] = checkSymbol;
+                        xorText[i][j][l] = xorResult;
+                        xorText[j][i][l] = xorResult;
                     }
-                    setPosition(i, j);
-                }
-            }
-        }
-    }
-
-    private void setPosition(int firstIndex, int secondIndex) {
-        char checkSymbol = (char) ((xorText[i][j] >> 5) & 0x3);     
-        if (positionArray[firstIndex][secondIndex] != SIGN && positionArray[firstIndex][secondIndex] != LITTLE) {
-            if (checkSymbol != 0) {
-                if (positionArray[firstIndex][secondIndex] == 0) {
-                    positionArray[firstIndex][secondIndex] = checkSymbol;
-                }
-                else if (positionArray[k] == SIGNLITTLE && checkSymbol == SIGNBIG) {
-                    positionArray[firstIndex][secondIndex] = SIGN;
-                }
-                else if (positionArray[firstIndex][secondIndex] == SIGNBIG && checkSymbol == SIGNLITTLE) {
-                    positionArray[firstIndex][secondIndex] = SIGN;   
                 }
             }
         }
@@ -138,30 +157,43 @@ class OnePadAttack {
     }
 
     public void printDebug() {
-        for (int i = 0; i < xorText.length; ++i) {
+/*        for (int i = 0; i < xorText.length; ++i) {
             for (int j = 0; j < xorText[i].length; ++j) {
                 if (i == j) {
                     continue;
                 }
-                System.out.printf("%h ", xorText[i][j]);
+                for (int l = 0; l < xorText[i][j].length; ++l) {
+                    System.out.printf("%h ", xorText[i][j][l]);
+                }
+                System.out.println();
             }
             System.out.println();
-        }
-/*        for (int i = 0; i < positionArray.length; ++i) {
-            if (positionArray[i] == EQUALS) {
-                System.out.print("EQUALS" + " ");
-            } else if (positionArray[i] == BIGLITTLE) {
-                System.out.print("BIGLITTLE" + " ");
-            } else if (positionArray[i] == SIGNBIG) {
-                System.out.print("SIGNBIG" + " ");
-            } else if (positionArray[i] == SIGNLITTLE) {
-                System.out.print("SIGNLITTLE" + " ");
-            } else if (positionArray[i] == SIGN) {
-                System.out.print("SIGN" + " ");
-            } else {
-                System.out.print("Unkinown" + " ");
-            }
         }*/
+        for (int i = 0; i < positionArray.length; ++i) {
+            for (int j = 0; j < positionArray.length; ++j) {
+                if (i == j) {
+                    continue;
+                }
+                for (int l = 2; l < 3; ++l) {
+                    if (positionArray[i][j][l] == EQUALS) {
+                        System.out.print("EQUALS" + " ");
+                    } else if (positionArray[i][j][l] == BIGLITTLE) {
+                        System.out.print("BIGLITTLE" + " ");
+                    } else if (positionArray[i][j][l] == SIGNBIG) {
+                        System.out.print("SIGNBIG" + " ");
+                    } else if (positionArray[i][j][l] == SIGNLITTLE) {
+                        System.out.print("SIGNLITTLE" + " ");
+                    } else if (positionArray[i][j][l] == SIGN) {
+                        System.out.print("SIGN" + " ");
+                    } else if (positionArray[i][j][l] == LITTLE) {
+                        System.out.print("LITTLE" + " ");
+                    } else {
+                        System.out.print("Unkinown" + " ");
+                    }
+                }
+            }
+            System.out.print("\n\n");
+        }
     }
 
     public static void main(String[] args) {
