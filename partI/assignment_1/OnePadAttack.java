@@ -3,6 +3,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Random;
+import java.util.PriorityQueue;
+
 
 class OnePadAttack {
     private static String[] test = {"315c4eeaa8b5f8aaf9174145bf43e1784b8fa00dc71d885a804e5ee9fa40b16349c146fb778cdf2d3aff021dfff5b403b510d0d0455468aeb98622b137dae857553ccd8883a7bc37520e06e515d22c954eba5025b8cc57ee59418ce7dc6bc41556bdb36bbca3e8774301fbcaa3b83b220809560987815f65286764703de0f3d524400a19b159610b11ef3e",
@@ -16,6 +19,15 @@ class OnePadAttack {
                                     "271946f9bbb2aeadec111841a81abc300ecaa01bd8069d5cc91005e9fe4aad6e04d513e96d99de2569bc5e50eeeca709b50a8a987f4264edb6896fb537d0a716132ddc938fb0f836480e06ed0fcd6e9759f40462f9cf57f4564186a2c1778f1543efa270bda5e933421cbe88a4a52222190f471e9bd15f652b653b7071aec59a2705081ffe72651d08f822c9ed6d76e48b63ab15d0208573a7eef027",
                                     "466d06ece998b7a2fb1d464fed2ced7641ddaa3cc31c9941cf110abbf409ed39598005b3399ccfafb61d0315fca0a314be138a9f32503bedac8067f03adbf3575c3b8edc9ba7f537530541ab0f9f3cd04ff50d66f1d559ba520e89a2cb2a83",
                                     "32510ba9babebbbefd001547a810e67149caee11d945cd7fc81a05e9f85aac650e9052ba6a8cd8257bf14d13e6f0a803b54fde9e77472dbff89d71b57bddef121336cb85ccb8f3315f4b52e301d16e9f52f904"};
+    
+    private Random random = new Random();
+    private char[] randomString;
+    private double[] freq = {0.08167, 0.01492, 0.02782, 0.04253, 0.12702, 0.02228,
+                             0.02015, 0.06094, 0.06966, 0.00153, 0.00772, 0.04025,
+                             0.02406, 0.06749, 0.07507, 0.01929, 0.00095, 0.05987,
+                             0.06327, 0.09056, 0.02758, 0.00978, 0.02360, 0.00150,
+                             0.01974, 0.00074};
+
     private static char BIGLITTLE = 0x1;
     private static char EQUALS = 0;
     private static char SIGNBIG = 0x3;
@@ -27,13 +39,36 @@ class OnePadAttack {
     // base cepher text
     private int cypherNumber;
     // his length
-    private int minCypherLen;
+    private int maxCypherLen;
     // base hex char cypher text
     private char[] baseCypherText;
     // array indicate position in cypher text
     private char[][][] positionArray;
     // xor cypher texts
-    private char[][][] xorText; 
+    private char[][] xorText;
+    // xor with random string
+    private char[][] xorWithRandomString; 
+    // 
+    private double[] frequencyLetter = new double[26];
+    //
+    private int totalLength = 0; 
+
+    class BestRandom implements Comparable<BestRandom> {
+        char[] random;
+        double probability;
+        public BestRandom(char[] random, double probability) {
+            this.random = new char[random.length];
+            for (int i = 0; i < random.length; ++i) {
+                this.random[i] = random[i];
+            }
+            this.probability = probability; 
+        }
+        public int compareTo(BestRandom that)
+        {
+            return Double.compare(probability, that.probability);
+        }
+
+    }
     public OnePadAttack(String fileName) {
         try {
             File file = new File(fileName);
@@ -48,20 +83,93 @@ class OnePadAttack {
             e.printStackTrace();
         }
         cypherNumber = 0;
-        minCypherLen = Integer.MAX_VALUE;
+
+        maxCypherLen = 0;
         for (int i = 0; i < test.length; ++i) {
-            if (minCypherLen > test[i].length()) {
-                minCypherLen = test[i].length();
+            totalLength += test[i].length() / 2;
+            if (maxCypherLen < test[i].length()) {
+                maxCypherLen = test[i].length();
                 cypherNumber = i;
             }
         }
-        minCypherLen /= 2;
-        positionArray  = new char[test.length][test.length][minCypherLen];
+        maxCypherLen /= 2;
+        randomString = new char[maxCypherLen];
+        xorText        = new char[test.length][];
+        xorWithRandomString = new char[test.length][];
+        for (int i = 0; i < xorText.length; ++i) {
+            xorText[i] = stringHexToChar(test[i]);
+            xorWithRandomString[i] = new char[test[i].length() / 2];
+        }
 
-        xorText        = new char[test.length][test.length][minCypherLen];
+        PriorityQueue<BestRandom> best = new PriorityQueue<BestRandom>(50);
+
+        for (int i = 0; i < 1000000; ++i) {
+            generateRandomString();
+            for (int k = 0; k < xorWithRandomString.length; ++k) {
+                for (int j = 0; j < xorWithRandomString[k].length; ++j) {
+                    xorWithRandomString[k][j] = (char) (xorText[k][j] ^ randomString[j]);
+                }
+            }
+            double temp = getFrequency();
+            //System.out.println(temp);
+            best.add(new BestRandom(randomString, temp));
+        }
+        BestRandom temp = best.peek();
+        System.out.println(temp.probability);
+
+        char[] goodRandom = temp.random;
+
+        for (int i = 0; i < xorText.length; ++i) {
+            for (int j = 0; j < xorText[i].length; ++j) {
+                char result = (char) (xorText[i][j] ^ goodRandom[j]); 
+                System.out.print(result);
+            }
+            System.out.println();
+        }
+        //positionArray  = new char[test.length][test.length][minCypherLen];
+
         //baseCypherText = stringHexToChar(test[cypherNumber]);
-        createXorTextArray();
+        //createXorTextArray();
         //decodeElementPosition();
+    }
+
+    private void generateRandomString() {
+        for (int i = 0; i < randomString.length; i++) {
+            randomString[i] = (char) random.nextInt(255);
+        }
+    }
+
+    private double getFrequency() {
+        for (int i = 0; i < frequencyLetter.length; ++i) {
+            frequencyLetter[i] = 0;
+        }
+
+        for (int i = 0; i < xorWithRandomString.length; ++i) {
+            for (int j = 0; j < xorWithRandomString[i].length; ++j) {
+                char letter = xorWithRandomString[i][j];
+                if (letter >= 'A' && letter <= 'Z') {
+                    //System.out.print(letter);
+                    ++frequencyLetter[letter - 65];
+
+                } else if (letter >= 'a' && letter <= 'z') {
+                    ++frequencyLetter[letter - 97];
+                }
+            }
+        }
+
+        double totalProbability = 0.0;
+        for (int i = 0; i < frequencyLetter.length; ++i) {
+            totalProbability += ((frequencyLetter[i] / (100 * totalLength)) - freq[i]) * ((frequencyLetter[i] / (100 * totalLength)) - freq[i]);
+        }
+
+        totalProbability /= 26;
+        totalProbability = Math.sqrt(totalProbability);
+
+        for (int i = 0; i < xorWithRandomString[0].length; ++i) {
+            System.out.print(xorWithRandomString[0][i]);
+        }
+
+        return totalProbability;
     }
 
     private char[] stringHexToChar(String hexString) {
@@ -81,12 +189,16 @@ class OnePadAttack {
 
     }
 
-    private void decodeElementPosition() {
-        for (int i = 0; i < xorText.length; ++i) {
-            for (int j = 0; j < xorText[i].length; ++j) {
-                if (i == j) {
-                    continue;
+/*    private void decodeElementPosition() {
+        for (int l = 0; l < minCypherLen; ++l) {
+            for (int i = 0; i < xorText.length; ++i) {
+                for (int j = 0; j < xorText[i].length; ++j) {
+                    if (i == j) {
+                        continue;
+                    }
                 }
+            }
+        }
                 for (int l = 0; l < xorText[i][j].length; ++l) {
                     char checkSymbol = (char) ((xorText[i][j][l] >> 5) & 0x3);
                     char first       = positionArray[i][j][l];
@@ -120,8 +232,8 @@ class OnePadAttack {
             }
         }
 
-    }
-
+    }*/
+/*
     private void createXorTextArray() {
         char[] firstHex = null;
         char[] secondHex = null;
@@ -143,14 +255,14 @@ class OnePadAttack {
                         } else {
                             positionArray[i][j][l] = checkSymbol;
                             positionArray[j][i][l] = checkSymbol;
-                        }
+                        //}
                         xorText[i][j][l] = xorResult;
                         xorText[j][i][l] = xorResult;
                     }
                 }
             }
         }
-    }
+    }*/
 
     private void findWordInDict() {
 
@@ -174,7 +286,7 @@ class OnePadAttack {
                 if (i == j) {
                     continue;
                 }
-                for (int l = 2; l < 3; ++l) {
+                for (int l = 5; l < 6; ++l) {
                     if (positionArray[i][j][l] == EQUALS) {
                         System.out.print("EQUALS" + " ");
                     } else if (positionArray[i][j][l] == BIGLITTLE) {
@@ -198,7 +310,7 @@ class OnePadAttack {
 
     public static void main(String[] args) {
         OnePadAttack attack = new OnePadAttack(args[0]);
-        attack.printDebug();
+        //attack.printDebug();
 
     }
 }
