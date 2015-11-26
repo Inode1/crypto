@@ -1,3 +1,4 @@
+import java.util.HashMap;
 import java.util.HashSet;
 import java.io.BufferedReader;
 import java.io.File;
@@ -5,7 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.PriorityQueue;
-
+import java.util.ArrayList;
 
 class OnePadAttack {
     private static String[] test = {"315c4eeaa8b5f8aaf9174145bf43e1784b8fa00dc71d885a804e5ee9fa40b16349c146fb778cdf2d3aff021dfff5b403b510d0d0455468aeb98622b137dae857553ccd8883a7bc37520e06e515d22c954eba5025b8cc57ee59418ce7dc6bc41556bdb36bbca3e8774301fbcaa3b83b220809560987815f65286764703de0f3d524400a19b159610b11ef3e",
@@ -34,12 +35,17 @@ class OnePadAttack {
     private static char SIGNLITTLE = 0x2;
     private static char SIGN = 0x4;
     private static char LITTLE = 0x8;
+    private static char BIGGEST = 0x10;
 
-    private HashSet<String> dict = new HashSet<String>();
+    private HashMap<Integer, ArrayList<String>> dict = new HashMap<Integer, ArrayList<String>>();
+    private HashSet<String> dictWord = new HashSet<String>();
+
     // base cepher text
     private int cypherNumber;
     // his length
     private int maxCypherLen;
+    // 
+    private int minCypherLen;
     // base hex char cypher text
     private char[] baseCypherText;
     // element position
@@ -80,7 +86,13 @@ class OnePadAttack {
             BufferedReader bufferedReader = new BufferedReader(fileReader);
             String line;
             while ((line = bufferedReader.readLine()) != null) {
-                dict.add(line);
+                dictWord.add(line);
+                ArrayList<String> temp = dict.get(line.length());
+                if (temp == null) {
+                    temp = new ArrayList<String>();
+                    dict.put(line.length(), temp);
+                }
+                temp.add(line);
             }
             fileReader.close();
         } catch (IOException e) {
@@ -89,15 +101,20 @@ class OnePadAttack {
         cypherNumber = 0;
 
         maxCypherLen = 0;
+        minCypherLen = Integer.MAX_VALUE;
         for (int i = 0; i < test.length; ++i) {
             /*totalLength += test[i].length() / 2;*/
             if (maxCypherLen < test[i].length()) {
                 maxCypherLen = test[i].length();
                 cypherNumber = i;
             }
+            if (minCypherLen > test[i].length()) {
+                minCypherLen = test[i].length();
+            }
         }
         totalLength = test[0].length() / 2;
         maxCypherLen /= 2;
+        minCypherLen /= 2;
         randomString = new byte[maxCypherLen];
         xorText        = new char[test.length][];
         xorWithRandomString = new char[test.length][];
@@ -138,11 +155,12 @@ class OnePadAttack {
 
         xorEveryText   = new char[test.length][test.length][];
         positionArray  = new char[test.length][test.length][];
-        elementPosistion = new char[test.length][];
+        elementPosistion = new char[test.length][minCypherLen];
 
 
         //baseCypherText = stringHexToChar(test[cypherNumber]);
         createXorTextArray();
+        //findWordInDict();
         //decodeElementPosition();
     }
 
@@ -209,50 +227,74 @@ class OnePadAttack {
 
     }
 
-/*    private void decodeElementPosition() {
+
+    private void decodeElementPosition() {
         for (int l = 0; l < minCypherLen; ++l) {
-            for (int i = 0; i < xorText.length; ++i) {
-                for (int j = 0; j < xorText[i].length; ++j) {
-                    if (i == j) {
-                        continue;
+            for (int i = 0; i < positionArray.length; ++i) {
+                boolean changeValue = false;
+                char newValue = 0;
+                for (int z = 0; z < 10;   ++z)
+                {
+                    for (int j = 0; j < positionArray[i].length; ++j) {
+                        if (i == j) {
+                            continue;
+                        }
+                        // 
+                        if (newValue != positionArray[i][j][l]) {
+                            if (newValue == EQUALS) {
+                                newValue = positionArray[i][j][l];
+                            } else if (positionArray[i][j][l] == EQUALS) {
+                                positionArray[i][j][l] = newValue;
+                            } else if (newValue == BIGLITTLE && positionArray[i][j][l] == SIGNBIG) {
+                                newValue = BIGGEST;
+                                positionArray[i][j][l] = SIGN;
+                            } else if (newValue == SIGNBIG && positionArray[i][j][l] == BIGLITTLE) {
+                                newValue = BIGGEST;
+                                positionArray[i][j][l] = LITTLE;                           
+                            } else if (newValue == SIGNBIG && positionArray[i][j][l] == SIGNLITTLE) {
+                                newValue = SIGN;
+                                positionArray[i][j][l] = LITTLE; 
+                            } else if (newValue == SIGNLITTLE && positionArray[i][j][l] == SIGNBIG) {
+                                newValue = SIGN;
+                                positionArray[i][j][l] = BIGGEST; 
+                            } else if (newValue == BIGLITTLE && positionArray[i][j][l] == SIGNLITTLE) {
+                                newValue = LITTLE;
+                                positionArray[i][j][l] = SIGN; 
+                            } else if (newValue == SIGNLITTLE && positionArray[i][j][l] == BIGLITTLE) {
+                                newValue = LITTLE;
+                                positionArray[i][j][l] = BIGGEST; 
+                            } else if (newValue == SIGN && positionArray[i][j][l] == SIGNBIG) {
+                                positionArray[i][j][l] = BIGGEST; 
+                            } else if (newValue == SIGN && positionArray[i][j][l] == SIGNLITTLE) {
+                                positionArray[i][j][l] = LITTLE; 
+                            } else if (newValue == SIGNBIG && positionArray[i][j][l] == SIGN) {
+                                newValue = BIGGEST; 
+                            } else if (newValue == SIGNLITTLE && positionArray[i][j][l] == SIGN) {
+                                newValue = LITTLE; 
+                            } else if (newValue == LITTLE && positionArray[i][j][l] == BIGLITTLE) {
+                                positionArray[i][j][l] = BIGGEST; 
+                            } else if (newValue == BIGLITTLE && positionArray[i][j][l] == LITTLE) {
+                                newValue = LITTLE; 
+                            } else if (newValue == LITTLE && positionArray[i][j][l] == SIGNLITTLE) {
+                                positionArray[i][j][l] = SIGN; 
+                            } else if (newValue == SIGNLITTLE && positionArray[i][j][l] == LITTLE) {
+                                newValue = SIGN; 
+                            } else if (newValue == BIGGEST && positionArray[i][j][l] == SIGNBIG) {
+                                positionArray[i][j][l] = SIGN; 
+                            } else if (newValue == SIGNBIG && positionArray[i][j][l] == BIGGEST) {
+                                newValue = SIGN; 
+                            } else if (newValue == BIGGEST && positionArray[i][j][l] == BIGLITTLE) {
+                                positionArray[i][j][l] = LITTLE; 
+                            } else if (newValue == BIGLITTLE && positionArray[i][j][l] == BIGGEST) {
+                                newValue = LITTLE; 
+                            }
+                        }
                     }
                 }
+                elementPosistion[i][l] = newValue;
             }
         }
-                for (int l = 0; l < xorText[i][j].length; ++l) {
-                    char checkSymbol = (char) ((xorText[i][j][l] >> 5) & 0x3);
-                    char first       = positionArray[i][j][l];
-                    char second      = positionArray[j][i][l];
-
-                    if (first != second) {
-                        if (first == EQUALS) {
-                            positionArray[i][j][l] = second;
-                        }
-                        else if (second == EQUALS) {
-                            positionArray[j][i][l] = first;
-                        }
-                        else if (first == LITTLE && second == SIGNLITTLE) {
-                            positionArray[j][i][l] = SIGN;
-                        }
-                        else if (second == LITTLE && first == SIGNLITTLE) {
-                            positionArray[i][j][l] = SIGN;
-                        } 
-                        else if (first == SIGN && second == SIGNLITTLE) {
-                            positionArray[j][i][l] = LITTLE;
-                        }
-                        else if (second == SIGN && first == SIGNLITTLE) {
-                            positionArray[i][j][l] = LITTLE;
-                        }
-                    } else {
-
-                    }
-                    //System.out.printf(" %h - %h - %h\n", first, second, checkSymbol);
-
-                }
-            }
-        }
-
-    }*/
+    }
 
     private void createXorTextArray() {
         char[] firstHex = null;
@@ -289,7 +331,34 @@ class OnePadAttack {
     }
 
     private void findWordInDict() {
+        int i = 1;
+        int j = 5;
+        char[] xor = xorEveryText[i][j];
+        int k = 5;
+        char[] result = new char[k];
+        char[][] encryptResult = new char[text.length][minCypherLen]
+        ArrayList<String> temp = dict.get(5);
+        for (String str: temp) {
+            for (int z = 0; z < k; ++z) {
+                result[z] = (char) (xor[z] ^ str.charAt(z));
+            }
+            if (dictWord.contains(new String(result))) {
+                char[] cypher = new char[k];
+                for (int n = 0; n < k; ++n) {
+                    cypher[n] = (char) (result[n] ^ xorText[j][n]);
+                }
+                //System.out.println(new String(result));
+                //System.out.println(str);
+                //System.out.println("Start");
+                for (int c = 0; c < xorText.length; ++c) {
+                    for (int b = 0; b < k; ++b) {
+                        System.out.printf("%c", (char) (xorText[c][b] ^ cypher[b]));
+                    }
+                    System.out.println();
+                }
 
+            }
+        }
     }
 
     public void printDebug() {
@@ -310,8 +379,7 @@ class OnePadAttack {
                 if (i == j) {
                     continue;
                 }
-                for (int l = 1; l < 2; ++l) {
-                    System.out.printf("%h", (xorEveryText[i][j][l]));
+                for (int l = 0; l < 1; ++l) {
                     if (positionArray[i][j][l] == EQUALS) {
                         System.out.print("EQUALS" + " ");
                         
